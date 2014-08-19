@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">VRouterService</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+	<string name="server_status_default">No Status</string>
+	<string name="server_status_send">Send Okay!</string>
+    <string name="server_status_pkt_type_set">Pkt Type Set</string>
+    <string name="server_status_pkt_amount_set">Pkt Amount Set</string>
+</resources>
