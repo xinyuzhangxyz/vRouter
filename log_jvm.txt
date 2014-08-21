@@ -1,3 +1,6 @@
+// please look directly from 08-20 21:02:00.000, log before that time point is useless. 
+// modified 08-21-14, by wenyh
+
 08-21 00:58:45.230: W/Resources(37): Preloaded drawable resource #0x10800f4 (android:drawable/btn_check_off_pressed_holo_dark) that varies with configuration!!
 08-21 00:58:45.230: W/Resources(37): Preloaded drawable resource #0x10800f0 (android:drawable/btn_check_off_holo_light) that varies with configuration!!
 08-21 00:58:45.310: W/Resources(37): Preloaded drawable resource #0x10800eb (android:drawable/btn_check_off_disabled_holo_light) that varies with configuration!!
