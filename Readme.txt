@@ -1,3 +1,3 @@
 vRouterClient: the origin whole project
-vRouterService: (temprorarily blank)
-TestApp: a test interface for vRouterService
+TestApp: a test interface for vRouterServer
+log_jvm.txt: log for the origin vRounterServer on JVM for about 15 mins. Maybe provide some vital informations.
