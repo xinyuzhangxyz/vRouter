@@ -39,6 +39,7 @@ import org.json.JSONException;
 import com.example.vrouter.util.HelpTools;
 import com.example.vrouter.util.HttpQuery;
 import com.example.vrouter.util.IPPacket;
+import com.example.vrouter.util.ThreadRead;
 
 import android.os.AsyncTask;
 
@@ -58,11 +59,14 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
     private String mServerAddress = "127.0.0.1";//Local loopback server, for testing purpose only; emulating a VPN server
     private int mServerPort = 9040;
     private PendingIntent mConfigureIntent;
-
     private Handler mHandler;
     private Thread mThread;
 
     private ParcelFileDescriptor mInterface;
+
+//    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
+    
+    DatagramChannel mTunnel = null;
     
     
     @Override
@@ -127,9 +131,6 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
            
         }
     }
-    
-    DatagramChannel mTunnel = null;
-
 
     private boolean runServer(InetSocketAddress server) throws Exception {
         boolean connected = false;
@@ -167,7 +168,7 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
             	
             	public void run ()
             	{
-            		DatagramChannel tunnel = mTunnel;
+//            		DatagramChannel tunnel = mTunnel;
 
               	  	// Allocate the buffer for a single packet.
                     ByteBuffer packet = ByteBuffer.allocate(1024);
@@ -280,19 +281,6 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 			                			ioe.printStackTrace();
 			                			Log.d(TAG, "receive socket exception. ", ioe);
 			                		}
-			                		//Log.d(TAG, "RX data length="+receivePacket.getLength()
-			                		//		+ " data: " + bytesToHex(receivePacket.getData()));
-			                		
-			                		/*
-			                		DatagramPacket outPacket1 = new DatagramPacket(
-			                				receivePacket.getData(),
-			                				receivePacket.getLength(), 
-			                				InetAddress.getByName(pkt.srcIP), pkt.srcPort);
-			                		//Log.d(TAG, "TX bytes: " + bytesToHex(pktBuf));
-			                		socket.send(outPacket1);
-			                		Log.d(TAG, "sent UDP pkt back to local VPN source, size " 
-			                					+ outPacket1.getLength());
-			                		*/
 			                		
 			                		//Write IP packet to local VPN source socket
 			                		//Note: cannot use UDP socket to send; need to use TUN
@@ -301,9 +289,7 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 			                		// reverse the src and dst of this packet and return it back to 
 			                		// VPN source address
 			                		HelpTools.reversePacketAddr(duplicateIPHeader, pkt, receivePacket);
-			                		
-			                		
-					                
+			                        
 					                duplicateIPHeader.limit(receivePacket.getLength() + 28);
 					                Log.d(TAG, "print pkt to local tunnel total size: "+ duplicateIPHeader.limit());
 //					                printIPPacket(duplicateIPHeader);
@@ -329,60 +315,14 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 		            catch (IOException e)
 		            {
 		            	e.printStackTrace();
-		            }finally{
-		            	
 		            }
 		            
             	}
             }.start();
-            new Thread ()
-            {
-            	
-            	public void run ()
-            	{
-            		DatagramChannel tunnel = mTunnel;
-
-              	  	// Allocate the buffer for a single packet.
-                    ByteBuffer packet = ByteBuffer.allocate(8096);
-		            // Packets received need to be written to this output stream.
-		            FileOutputStream out = new FileOutputStream(mInterface.getFileDescriptor());
-		            
-		            while (true)
-		            {
-		                try
-		                {
-			                // Read the incoming packet from the tunnel.
-			                int length;
-			                while ((length = tunnel.read(packet)) > 0)
-			                {
-			                	Log.d(TAG, "Incoming packet written to the output stream.");
-			                	IPPacket pkt = new IPPacket();
-			                	ByteBuffer duplicateIPHeader = ByteBuffer.allocate(2048);
-//			                	debugPacket(packet, pkt, duplicateIPHeader);
-			                	Log.d(TAG, pkt.toString());
-			                	
-			                    // Write the incoming packet to the output stream.
-			                    out.write(packet.array(), 0, length);
-			                    
-			                    packet.clear();
-			                }
-		                }
-		                catch (IOException ioe)
-		                {
-		                	ioe.printStackTrace();
-		                }finally{
-		                	if(out!= null)
-								try {
-									out.close();
-								} catch (IOException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								}
-		                }
-	            	}
-            	}
-            }.start();
-
+            
+            ThreadRead threadRead = new ThreadRead(mTunnel, mInterface);
+            threadRead.run();
+            
         return connected;
     }
 
@@ -413,24 +353,5 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 	                .establish();
     	}
     }
-    
-    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
-    /*
-    public static String bytesToHex(byte[] bytes) {
-        //char[] hexChars = new char[bytes.length * 2];
-        //for ( int j = 0; j < bytes.length; j++ ) {
-    	char[] hexChars = new char[200];
-        for ( int j = 0; j < 100; j++ ) {
-            int v = bytes[j] & 0xFF;
-			hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
-    }
-    */
-    
-
-
-
     
 }
