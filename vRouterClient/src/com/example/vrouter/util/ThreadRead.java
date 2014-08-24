@@ -40,8 +40,8 @@ public class ThreadRead implements Runnable{
                 {
                 	Log.d(TAG, "Incoming packet written to the output stream.");
                 	IPPacket pkt = new IPPacket();
-//                	ByteBuffer duplicateIPHeader = ByteBuffer.allocate(2048);
-//                	debugPacket(packet, pkt, duplicateIPHeader);
+                	ByteBuffer duplicateIPHeader = ByteBuffer.allocate(2048);
+                	HelpTools.debugPacket(packet, pkt, duplicateIPHeader);
                 	Log.d(TAG, pkt.toString());
                 	
                     // Write the incoming packet to the output stream.
