@@ -66,7 +66,7 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 
 //    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
     
-    DatagramChannel mTunnel = null;
+    private DatagramChannel mTunnel = null;
     
     
     @Override
@@ -201,7 +201,7 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 				                */
 				                IPPacket pkt = new IPPacket();
 				                ByteBuffer duplicateIPHeader = ByteBuffer.allocate(2048);
-//			                	debugPacket(packet, pkt, duplicateIPHeader);
+			                	HelpTools.debugPacket(packet, pkt, duplicateIPHeader);
 			                	Log.d(TAG, "Pkt info: "+pkt.toString());
 			                	
 			                	if (pkt.pktType == 6) { //TCP

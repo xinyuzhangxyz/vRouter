@@ -124,5 +124,122 @@ public class HelpTools {
       return sum;
     }
     
-    
+    public static void debugPacket(ByteBuffer packet, IPPacket myIPpkt, ByteBuffer dupHeader)
+    {
+    	// Reference: http://en.wikipedia.org/wiki/IPv4
+		//Log.d(TAG, "Original bytes: " + bytesToHex(packet.array()));
+		
+        int buffer = packet.get();
+        int version;
+        int headerlength;
+        int protocol;
+        version = buffer >> 4;
+        headerlength = buffer & 0x0F;
+        dupHeader.put((byte)buffer);
+        
+        headerlength *= 4;
+        //Log.d(TAG, "IP Version:"+version);
+        //Log.d(TAG, "Header Length:"+headerlength);
+
+        String status = "";
+        //status += "Header Length:"+headerlength;
+
+        buffer = packet.get();      //DSCP + EN
+        dupHeader.put((byte)buffer);
+        buffer = packet.getChar();  //Total Length
+        dupHeader.putChar((char)buffer);
+        myIPpkt.pktLen = buffer;
+        
+        //Log.d(TAG, "Total Length:"+buffer);
+
+        buffer = packet.getChar();  //Identification
+        dupHeader.putChar((char)buffer);
+        buffer = packet.getChar();  //Flags + Fragment Offset
+        dupHeader.putChar((char)buffer);
+        buffer = packet.get();      //Time to Live
+        dupHeader.put((byte)buffer);
+        buffer = packet.get();      //Protocol
+        protocol = buffer;
+        dupHeader.put((byte)buffer);
+        
+        //Log.d(TAG, "Protocol:"+buffer);
+
+        status += "  Protocol:"+buffer;
+        myIPpkt.pktType = buffer;
+        
+        buffer = packet.getChar();  //Header checksum
+        dupHeader.putChar((char)buffer);
+        
+        String sourceIP  = "";
+        buffer = (int) (packet.get()&0x00FF);  //Source IP 1st Octet FIXME
+        dupHeader.put((byte)buffer);
+        sourceIP += buffer;
+        sourceIP += ".";
+
+        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Source IP 2nd Octet
+        dupHeader.put((byte)buffer);
+        sourceIP += buffer;
+        sourceIP += ".";
+
+        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Source IP 3rd Octet
+        dupHeader.put((byte)buffer);
+        sourceIP += buffer;
+        sourceIP += ".";
+
+        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Source IP 4th Octet
+        dupHeader.put((byte)buffer);
+        sourceIP += buffer;
+
+        //Log.d(TAG, "Source IP:"+sourceIP);
+
+        //status += "   Source IP:"+sourceIP;
+
+        String destIP  = "";
+        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Destination IP 1st Octet
+        dupHeader.put((byte)buffer);
+        destIP += buffer;
+        destIP += ".";
+
+        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Destination IP 2nd Octet
+        dupHeader.put((byte)buffer);
+        destIP += buffer;
+        destIP += ".";
+
+        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Destination IP 3rd Octet
+        dupHeader.put((byte)buffer);
+        destIP += buffer;
+        destIP += ".";
+
+        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Destination IP 4th Octet
+        dupHeader.put((byte)buffer);
+        destIP += buffer;
+
+        //Log.d(TAG, "Destination IP:"+destIP);
+
+        //status += "   Destination IP:"+destIP;
+
+		//Log.d(TAG, "RX bytes: " + bytesToHex(packet.array()));
+
+        myIPpkt.srcIP = sourceIP;
+        myIPpkt.dstIP = destIP;
+    	myIPpkt.srcPort = packet.getChar();
+    	myIPpkt.dstPort = packet.getChar();
+        if (protocol == 17) {//UDP
+        	int len = packet.getChar();
+        	int checksum = packet.getChar();//UDP checksum
+        } else if (protocol ==6) {//TCP
+        	int seq = packet.getInt();
+        	int ACKseq = packet.getInt();
+        	int data_resv = packet.get();
+        	int flags = packet.get();
+        	int window = packet.getChar();
+        	int checksum = packet.getChar();
+        	int urgent = packet.getChar();
+        }
+        //Log.d(TAG, myIPpkt.toString());
+        
+        //Log.d(TAG, "duplicated IP packet.");
+        //printIPPacket(dupHeader);
+    }
+
 }
