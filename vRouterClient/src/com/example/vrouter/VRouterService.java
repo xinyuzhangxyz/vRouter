@@ -135,17 +135,17 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
     private boolean runServer(InetSocketAddress server) throws Exception {
         boolean connected = false;
         
-        android.os.Debug.waitForDebugger();
+//        android.os.Debug.waitForDebugger();
         
             // Create a DatagramChannel as the VPN tunnel.
         	mTunnel = DatagramChannel.open();
-        	DatagramSocket dsk = mTunnel.socket();
-        	if (dsk == null) {
-        		Log.d(TAG, "ERROR! dsk is null!");
+        	DatagramSocket dataSocket = mTunnel.socket();
+        	if (dataSocket == null) {
+        		Log.d(TAG, "ERROR! Datagram Socket is null!");
         	}
         	
             // Protect the tunnel before connecting to avoid loopback.
-            if (!protect(dsk)) {
+            if (!protect(dataSocket)) {
                 throw new IllegalStateException("Cannot protect the local tunnel");
             }
 
@@ -165,7 +165,6 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
             
             new Thread ()
             {
-            	
             	public void run ()
             	{
 //            		DatagramChannel tunnel = mTunnel;
