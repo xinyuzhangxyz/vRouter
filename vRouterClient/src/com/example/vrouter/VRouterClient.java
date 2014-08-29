@@ -6,9 +6,6 @@ import android.net.VpnService;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.TextView;
-import android.widget.Button;
-
 
 
 public class VRouterClient extends Activity implements View.OnClickListener {

@@ -36,6 +36,11 @@ import org.apache.http.NameValuePair;
 import org.json.JSONArray;
 import org.json.JSONException;
 
+import com.example.vrouter.util.HelpTools;
+import com.example.vrouter.util.HttpQuery;
+import com.example.vrouter.util.IPPacket;
+import com.example.vrouter.util.ThreadRead;
+
 import android.os.AsyncTask;
 
 import android.app.PendingIntent;
@@ -54,19 +59,17 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
     private String mServerAddress = "127.0.0.1";//Local loopback server, for testing purpose only; emulating a VPN server
     private int mServerPort = 9040;
     private PendingIntent mConfigureIntent;
-
     private Handler mHandler;
     private Thread mThread;
 
     private ParcelFileDescriptor mInterface;
 
-    //Intent UIupdateIntent = new Intent("UI_UPDATE");
-    //i.putExtra("<Key>","text");
-    //sendBroadcast(i);
+//    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
+    
+    private DatagramChannel mTunnel = null;
     
     
     @Override
-    // Will be called when this service is called as a new intent
     public int onStartCommand(Intent intent, int flags, int startId) {
         // The handler is only used to show messages.
         if (mHandler == null) {
@@ -113,7 +116,7 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
                     mServerAddress, mServerPort);
             mHandler.sendEmptyMessage(R.string.connecting);
       
-            run(server);
+            runServer(server);
             
         } catch (Exception e) {
             Log.e(TAG, "Got " + e.toString());
@@ -128,67 +131,21 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
            
         }
     }
-    /*
-    @Override
-    public synchronized void run() {
-        try {
-            Log.i(TAG, "Starting");
 
-            // If anything needs to be obtained using the network, get it now.
-            // This greatly reduces the complexity of seamless handover, which
-            // tries to recreate the tunnel without shutting down everything.
-            // In this demo, all we need to know is the server address.
-            InetSocketAddress server = new InetSocketAddress(
-                    mServerAddress, mServerPort);
-
-            // We try to create the tunnel for several times. The better way
-            // is to work with ConnectivityManager, such as trying only when
-            // the network is avaiable. Here we just use a counter to keep
-            // things simple.
-            for (int attempt = 0; attempt < 10; ++attempt) {
-                mHandler.sendEmptyMessage(R.string.connecting);
-
-                // Reset the counter if we were connected.
-                if (run(server)) {
-                    attempt = 0;
-                }
-
-                // Sleep for a while. This also checks if we got interrupted.
-                Thread.sleep(3000);
-            }
-            Log.i(TAG, "Giving up");
-        } catch (Exception e) {
-            Log.e(TAG, "Got " + e.toString());
-        } finally {
-            try {
-                mInterface.close();
-            } catch (Exception e) {
-                // ignore
-            }
-            mInterface = null;
-
-            mHandler.sendEmptyMessage(R.string.disconnected);
-            Log.i(TAG, "Exiting");
-        }
-    }*/
-
-    DatagramChannel mTunnel = null;
-
-
-    private boolean run(InetSocketAddress server) throws Exception {
+    private boolean runServer(InetSocketAddress server) throws Exception {
         boolean connected = false;
         
-        android.os.Debug.waitForDebugger();
+//        android.os.Debug.waitForDebugger();
         
             // Create a DatagramChannel as the VPN tunnel.
         	mTunnel = DatagramChannel.open();
-        	DatagramSocket dsk = mTunnel.socket();
-        	if (dsk == null) {
-        		Log.d(TAG, "ERROR! dsk is null!");
+        	DatagramSocket dataSocket = mTunnel.socket();
+        	if (dataSocket == null) {
+        		Log.d(TAG, "ERROR! Datagram Socket is null!");
         	}
         	
             // Protect the tunnel before connecting to avoid loopback.
-            if (!protect(dsk)) {
+            if (!protect(dataSocket)) {
                 throw new IllegalStateException("Cannot protect the local tunnel");
             }
 
@@ -205,57 +162,12 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
             // Now we are connected. Set the flag and show the message.
             connected = true;
             mHandler.sendEmptyMessage(R.string.connected);
-
-            /*
-            new Thread ()
-            {
-            	
-            	public void run ()
-            	{
-            		// get server address and port
-            		String serverName = "192.168.43.162";
-            		InetAddress serverIPAddress = null;
-            		try {
-            			serverIPAddress = InetAddress.getByName(serverName);
-            		} catch (UnknownHostException ex) {
-            			Log.d(TAG, "Exception in TCP client thread.", ex);
-            		}
-            		
-            		int serverPort = 12354;
-            		// create socket which connects to server
-            		try {
-            			Socket clientSocket = new Socket(serverIPAddress, serverPort);
-            			//Socket clientSocket = SocketChannel.open().socket();
-                		//if ((null != clientSocket) && (null != this)) {
-                		//	protect(clientSocket);
-                		//}
-                		//clientSocket.connect(new InetSocketAddress(serverIPAddress, serverPort), 10000);
-                        String sentence = "A sentence sent to TCP server."; //inFromUser.readLine();
-                        Log.d(TAG, "To Server: " + sentence);
-                        // write to server
-                        DataOutputStream outToServer = new
-                            DataOutputStream(clientSocket.getOutputStream());
-                        outToServer.writeBytes(sentence + '\n');
-                        // create read stream and receive from server
-                        BufferedReader inFromServer = new
-                            BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                        String sentenceFromServer = inFromServer.readLine();
-                        Log.d(TAG, "From Server: " + sentenceFromServer);
-                        // close client socket
-                        clientSocket.close();
-            		} catch(IOException ex) {
-            			Log.d(TAG, "Exception in TCP client thread.", ex);
-            		}
-            	}
-            }.start();
-            */
             
             new Thread ()
             {
-            	
             	public void run ()
             	{
-            		DatagramChannel tunnel = mTunnel;
+//            		DatagramChannel tunnel = mTunnel;
 
               	  	// Allocate the buffer for a single packet.
                     ByteBuffer packet = ByteBuffer.allocate(1024);
@@ -266,7 +178,7 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 		            
 		            try
 		            {
-		            	httpQuery hQ = new httpQuery();
+		            	HttpQuery hQ = new HttpQuery();
 		        		hQ.execute("12345678901234567890");
 		            	
 		            	while (true)
@@ -286,9 +198,9 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 				                5. Obtain the response
 				                6. Add the TCP header to the response and forward it
 				                */
-				                IPpkt pkt = new IPpkt();
+				                IPPacket pkt = new IPPacket();
 				                ByteBuffer duplicateIPHeader = ByteBuffer.allocate(2048);
-			                	debugPacket(packet, pkt, duplicateIPHeader);
+			                	HelpTools.debugPacket(packet, pkt, duplicateIPHeader);
 			                	Log.d(TAG, "Pkt info: "+pkt.toString());
 			                	
 			                	if (pkt.pktType == 6) { //TCP
@@ -368,19 +280,6 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 			                			ioe.printStackTrace();
 			                			Log.d(TAG, "receive socket exception. ", ioe);
 			                		}
-			                		//Log.d(TAG, "RX data length="+receivePacket.getLength()
-			                		//		+ " data: " + bytesToHex(receivePacket.getData()));
-			                		
-			                		/*
-			                		DatagramPacket outPacket1 = new DatagramPacket(
-			                				receivePacket.getData(),
-			                				receivePacket.getLength(), 
-			                				InetAddress.getByName(pkt.srcIP), pkt.srcPort);
-			                		//Log.d(TAG, "TX bytes: " + bytesToHex(pktBuf));
-			                		socket.send(outPacket1);
-			                		Log.d(TAG, "sent UDP pkt back to local VPN source, size " 
-			                					+ outPacket1.getLength());
-			                		*/
 			                		
 			                		//Write IP packet to local VPN source socket
 			                		//Note: cannot use UDP socket to send; need to use TUN
@@ -388,13 +287,11 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 			                		//packet.put(receivePacket.getData(), 0, receivePacket.getLength());
 			                		// reverse the src and dst of this packet and return it back to 
 			                		// VPN source address
-			                		reversePacketAddr(duplicateIPHeader, pkt, receivePacket);
-			                		
-			                		
-					                
+			                		HelpTools.reversePacketAddr(duplicateIPHeader, pkt, receivePacket);
+			                        
 					                duplicateIPHeader.limit(receivePacket.getLength() + 28);
 					                Log.d(TAG, "print pkt to local tunnel total size: "+ duplicateIPHeader.limit());
-					                printIPPacket(duplicateIPHeader);
+//					                printIPPacket(duplicateIPHeader);
 			                		//tunnel.write(duplicateIPHeader);//send to VPN server
 					                
 					                
@@ -404,6 +301,7 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 					                FileOutputStream out = new FileOutputStream(mInterface.getFileDescriptor());
 						            out.write(duplicateIPHeader.array(), 0, receivePacket.getLength() + 28);
 					                
+						            out.close();
 			                	} else {
 			                		Log.d(TAG, "Wrong packet type " + pkt.pktType);
 			                	}
@@ -421,47 +319,9 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
             	}
             }.start();
             
+            ThreadRead threadRead = new ThreadRead(mTunnel, mInterface);
+            threadRead.run();
             
-            new Thread ()
-            {
-            	
-            	public void run ()
-            	{
-            		DatagramChannel tunnel = mTunnel;
-
-              	  	// Allocate the buffer for a single packet.
-                    ByteBuffer packet = ByteBuffer.allocate(8096);
-		            // Packets received need to be written to this output stream.
-		            FileOutputStream out = new FileOutputStream(mInterface.getFileDescriptor());
-		            
-		            while (true)
-		            {
-		                try
-		                {
-			                // Read the incoming packet from the tunnel.
-			                int length;
-			                while ((length = tunnel.read(packet)) > 0)
-			                {
-			                	Log.d(TAG, "Incoming packet written to the output stream.");
-			                	IPpkt pkt = new IPpkt();
-			                	ByteBuffer duplicateIPHeader = ByteBuffer.allocate(2048);
-			                	debugPacket(packet, pkt, duplicateIPHeader);
-			                	Log.d(TAG, pkt.toString());
-			                	
-			                    // Write the incoming packet to the output stream.
-			                    out.write(packet.array(), 0, length);
-			                    
-			                    packet.clear();
-			                }
-		                }
-		                catch (IOException ioe)
-		                {
-		                	ioe.printStackTrace();
-		                }
-	            	}
-            	}
-            }.start();
-
         return connected;
     }
 
@@ -492,431 +352,5 @@ public class VRouterService extends VpnService implements Handler.Callback, Runn
 	                .establish();
     	}
     }
-
-    /*
-    public String getLocalIpAddress()
-    {
-        try {
-            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
-                NetworkInterface intf = en.nextElement();
-                Log.i(TAG,"Inspect interface (human readable ): " + intf.getDisplayName());
-                Log.i(TAG,"Inspect interface: " + intf.getDisplayName());
-                for (Enumeration<InetAddress> enumIpAddr = intf.getInetAddresses(); enumIpAddr.hasMoreElements();) {
-                    InetAddress inetAddress = enumIpAddr.nextElement();
-                    Log.i(TAG,"****** INET ADDRESS ******");
-                    Log.i(TAG,"address: "+inetAddress.getHostAddress());
-                    Log.i(TAG,"hostname: "+inetAddress.getHostName());
-                    Log.i(TAG,"address.toString(): "+inetAddress.getHostAddress().toString());
-                    if (!inetAddress.isLoopbackAddress()) {
-                        //IPAddresses.setText(inetAddress.getHostAddress().toString());
-                        Log.i(TAG,"IS NOT LOOPBACK ADDRESS: "+inetAddress.getHostAddress().toString());
-                        return inetAddress.getHostAddress().toString();
-                    } else{
-                        Log.i(TAG,"It is a loopback address");
-                    }
-                }
-            }
-        } catch (SocketException ex) {
-            String LOG_TAG = null;
-            Log.e(LOG_TAG, ex.toString());
-        }
-
-        return null;
-    }
-    */
     
-
-    
-    private class IPpkt {
-    	String srcIP;
-    	String dstIP;
-    	int srcPort;
-    	int dstPort;
-    	int pktType;//6:TCP  17:UDP
-    	int pktLen; 
-    	
-    	@Override
-    	public String toString() {
-    		return "src="+srcIP+":"+srcPort+ "  dst="+dstIP+":"+dstPort + " len="+pktLen;
-    	};
-    }
-    
-    final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
-    public static String bytesToHex(byte[] bytes) {
-        //char[] hexChars = new char[bytes.length * 2];
-        //for ( int j = 0; j < bytes.length; j++ ) {
-    	char[] hexChars = new char[200];
-        for ( int j = 0; j < 100; j++ ) {
-            int v = bytes[j] & 0xFF;
-			hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
-    }
-    
-    public void reversePacketAddr(ByteBuffer templatePkt, 
-    		IPpkt sentPkt, DatagramPacket receivedPacket) {
-    	// Regenerate IP header and header checksum
-    	//myPkt.put(templatePkt);
-    	templatePkt.putChar(10, (char)0);//Initialize header checksum to 0
-    	byte[] srcIP = receivedPacket.getAddress().getAddress();
-    	byte[] dstIP = null;
-    	try {
-    		//InetAddress myip = InetAddress.getByName(sentPkt.srcIP);
-    		dstIP = InetAddress.getByName(sentPkt.srcIP).getAddress();
-    	} catch (UnknownHostException ex) {
-    		Log.d(TAG, "In reversePacketAddr()", ex);
-    	}
-    	//dstIP[0] = (byte)127;//test only
-    	//dstIP[1] = (byte)0;
-    	//dstIP[2] = (byte)0;
-    	//dstIP[3] = (byte)1;
-    	
-    	for (int b = 12; b < 16; b ++) {
-    		templatePkt.put(b, srcIP[b-12]);
-    	}
-    	for (int b = 16; b < 20; b ++) {
-    		templatePkt.put(b, dstIP[b-16]);
-    	}
-    	
-    	byte [] IPheader = new byte[20];
-    	templatePkt.put(IPheader, 0, 20);
-    	templatePkt.putChar(10, (char) calculateChecksum(IPheader));
-    	
-    	// Regenerate UDP header and checksum
-    	int srcPort = receivedPacket.getPort();
-    	int dstPort = sentPkt.srcPort;
-    	int UDPdataLen = receivedPacket.getLength();
-    	
-    	templatePkt.putChar(20, (char)srcPort);
-    	templatePkt.putChar(22, (char)dstPort);
-    	templatePkt.putChar(24, (char)UDPdataLen);
-    	//Log.d(TAG, "reversed srcIP: "+);
-    	//Log.d(TAG, "reversed srcPort: "+srcPort+" dstPort: "+dstPort+" UDPdataLen: "+UDPdataLen);
-    	
-    	byte[] myUDPpkt = new byte[8+UDPdataLen];
-    	
-    	// Note: UDP checksum is for both the header AND data
-    	myUDPpkt[0] = (byte) ((srcPort&0xFF00) >> 8);
-    	myUDPpkt[1] = (byte) (srcPort&0x00FF);
-    	myUDPpkt[2] = (byte) ((dstPort&0xFF00) >> 8);
-    	myUDPpkt[3] = (byte) (dstPort&0x00FF);
-    	myUDPpkt[4] = (byte) ((UDPdataLen&0xFF00) >> 8);
-    	myUDPpkt[5] = (byte) (UDPdataLen&0x00FF);
-    	myUDPpkt[6] = (byte) 0;
-    	myUDPpkt[7] = (byte) 0;
-    	System.arraycopy(receivedPacket.getData(), 0, myUDPpkt, 8, UDPdataLen);
-    	templatePkt.putChar(26, (char) calculateChecksum(myUDPpkt));
-    	
-    	templatePkt.put(myUDPpkt, 0, myUDPpkt.length);
-    	templatePkt.put(receivedPacket.getData());
-    	
-    	templatePkt.rewind();
-    	//printIPPacket(templatePkt);
-    }
-    
-    // Read packet header and extract useful information
-    private void debugPacket(ByteBuffer packet, IPpkt myIPpkt, ByteBuffer dupHeader)
-    {
-    	// Reference: http://en.wikipedia.org/wiki/IPv4
-		//Log.d(TAG, "Original bytes: " + bytesToHex(packet.array()));
-		
-        int buffer = packet.get();
-        int version;
-        int headerlength;
-        int protocol;
-        version = buffer >> 4;
-        headerlength = buffer & 0x0F;
-        dupHeader.put((byte)buffer);
-        
-        headerlength *= 4;
-        //Log.d(TAG, "IP Version:"+version);
-        //Log.d(TAG, "Header Length:"+headerlength);
-
-        String status = "";
-        //status += "Header Length:"+headerlength;
-
-        buffer = packet.get();      //DSCP + EN
-        dupHeader.put((byte)buffer);
-        buffer = packet.getChar();  //Total Length
-        dupHeader.putChar((char)buffer);
-        myIPpkt.pktLen = buffer;
-        
-        //Log.d(TAG, "Total Length:"+buffer);
-
-        buffer = packet.getChar();  //Identification
-        dupHeader.putChar((char)buffer);
-        buffer = packet.getChar();  //Flags + Fragment Offset
-        dupHeader.putChar((char)buffer);
-        buffer = packet.get();      //Time to Live
-        dupHeader.put((byte)buffer);
-        buffer = packet.get();      //Protocol
-        protocol = buffer;
-        dupHeader.put((byte)buffer);
-        
-        //Log.d(TAG, "Protocol:"+buffer);
-
-        status += "  Protocol:"+buffer;
-        myIPpkt.pktType = buffer;
-        
-        buffer = packet.getChar();  //Header checksum
-        dupHeader.putChar((char)buffer);
-        
-        String sourceIP  = "";
-        buffer = (int) (packet.get()&0x00FF);  //Source IP 1st Octet FIXME
-        dupHeader.put((byte)buffer);
-        sourceIP += buffer;
-        sourceIP += ".";
-
-        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Source IP 2nd Octet
-        dupHeader.put((byte)buffer);
-        sourceIP += buffer;
-        sourceIP += ".";
-
-        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Source IP 3rd Octet
-        dupHeader.put((byte)buffer);
-        sourceIP += buffer;
-        sourceIP += ".";
-
-        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Source IP 4th Octet
-        dupHeader.put((byte)buffer);
-        sourceIP += buffer;
-
-        //Log.d(TAG, "Source IP:"+sourceIP);
-
-        //status += "   Source IP:"+sourceIP;
-
-        String destIP  = "";
-        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Destination IP 1st Octet
-        dupHeader.put((byte)buffer);
-        destIP += buffer;
-        destIP += ".";
-
-        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Destination IP 2nd Octet
-        dupHeader.put((byte)buffer);
-        destIP += buffer;
-        destIP += ".";
-
-        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Destination IP 3rd Octet
-        dupHeader.put((byte)buffer);
-        destIP += buffer;
-        destIP += ".";
-
-        buffer = (int) (packet.get()&0x00FF);//packet.get();  //Destination IP 4th Octet
-        dupHeader.put((byte)buffer);
-        destIP += buffer;
-
-        //Log.d(TAG, "Destination IP:"+destIP);
-
-        //status += "   Destination IP:"+destIP;
-
-		//Log.d(TAG, "RX bytes: " + bytesToHex(packet.array()));
-
-        myIPpkt.srcIP = sourceIP;
-        myIPpkt.dstIP = destIP;
-    	myIPpkt.srcPort = packet.getChar();
-    	myIPpkt.dstPort = packet.getChar();
-        if (protocol == 17) {//UDP
-        	int len = packet.getChar();
-        	int checksum = packet.getChar();//UDP checksum
-        } else if (protocol ==6) {//TCP
-        	int seq = packet.getInt();
-        	int ACKseq = packet.getInt();
-        	int data_resv = packet.get();
-        	int flags = packet.get();
-        	int window = packet.getChar();
-        	int checksum = packet.getChar();
-        	int urgent = packet.getChar();
-        }
-        //Log.d(TAG, myIPpkt.toString());
-        
-        //Log.d(TAG, "duplicated IP packet.");
-        //printIPPacket(dupHeader);
-    }
-    
-    // debugging purpose only
-    private void printIPPacket(ByteBuffer packet)
-    {
-    	// Reference: http://en.wikipedia.org/wiki/IPv4
-		//Log.d(TAG, "Original bytes: " + bytesToHex(packet.array()));
-        int buffer = packet.get();
-        int version;
-        int headerlength;
-        version = buffer >> 4;
-        headerlength = buffer & 0x0F;
-        
-        headerlength *= 4;
-        //Log.d(TAG, "IP Version:"+version);
-        //Log.d(TAG, "Header Length:"+headerlength);
-
-        String status = "";
-        //status += "Header Length:"+headerlength;
-
-        buffer = packet.get();      //DSCP + EN
-        buffer = packet.getChar();  //Total Length
-        
-        //Log.d(TAG, "Total Length:"+buffer);
-
-        buffer = packet.getChar();  //Identification
-        buffer = packet.getChar();  //Flags + Fragment Offset
-        buffer = packet.get();      //Time to Live
-        buffer = packet.get();      //Protocol
-        
-        //Log.d(TAG, "Protocol:"+buffer);
-
-        status += "  Protocol:"+buffer;
-        
-        buffer = packet.getChar();  //Header checksum
-        
-        String sourceIP  = "";
-        buffer = packet.get();  //Source IP 1st Octet FIXME
-        sourceIP += buffer;
-        sourceIP += ".";
-
-        buffer = packet.get();  //Source IP 2nd Octet
-        sourceIP += buffer;
-        sourceIP += ".";
-
-        buffer = packet.get();  //Source IP 3rd Octet
-        sourceIP += buffer;
-        sourceIP += ".";
-
-        buffer = packet.get();  //Source IP 4th Octet
-        sourceIP += buffer;
-
-        Log.d(TAG, "Source IP:"+sourceIP);
-
-        //status += "   Source IP:"+sourceIP;
-
-        String destIP  = "";
-        buffer = packet.get();  //Destination IP 1st Octet
-        destIP += buffer;
-        destIP += ".";
-
-        buffer = packet.get();  //Destination IP 2nd Octet
-        destIP += buffer;
-        destIP += ".";
-
-        buffer = packet.get();  //Destination IP 3rd Octet
-        destIP += buffer;
-        destIP += ".";
-
-        buffer = packet.get();  //Destination IP 4th Octet
-        destIP += buffer;
-
-        Log.d(TAG, "Destination IP:"+destIP);
-
-        //status += "   Destination IP:"+destIP;
-
-        int srcPort = packet.getChar();
-        int dstPort = packet.getChar();
-		Log.d(TAG, "srcPort: " + srcPort + " dstPort: " + dstPort);
-        //Log.d(TAG, myIPpkt.toString());
-    }
-
-    /**
-     * Calculate the Internet Checksum of a buffer (RFC 1071 - http://www.faqs.org/rfcs/rfc1071.html)
-     * Algorithm is
-     * 1) apply a 16-bit 1's complement sum over all octets (adjacent 8-bit pairs [A,B], final odd length is [A,0])
-     * 2) apply 1's complement to this final sum
-     *
-     * Notes:
-     * 1's complement is bitwise NOT of positive value.
-     * Ensure that any carry bits are added back to avoid off-by-one errors
-     *
-     *
-     * @param buf The message
-     * @return The checksum
-     */
-    public long calculateChecksum(byte[] buf) {
-      int length = buf.length;
-      int i = 0;
-
-      long sum = 0;
-      long data;
-
-      // Handle all pairs
-      while (length > 1) {
-        // Corrected to include @Andy's edits and various comments on Stack Overflow
-        data = (((buf[i] << 8) & 0xFF00) | ((buf[i + 1]) & 0xFF));
-        sum += data;
-        // 1's complement carry bit correction in 16-bits (detecting sign extension)
-        if ((sum & 0xFFFF0000) > 0) {
-          sum = sum & 0xFFFF;
-          sum += 1;
-        }
-
-        i += 2;
-        length -= 2;
-      }
-
-      // Handle remaining byte in odd length buffers
-      if (length > 0) {
-        // Corrected to include @Andy's edits and various comments on Stack Overflow
-        sum += (buf[i] << 8 & 0xFF00);
-        // 1's complement carry bit correction in 16-bits (detecting sign extension)
-        if ((sum & 0xFFFF0000) > 0) {
-          sum = sum & 0xFFFF;
-          sum += 1;
-        }
-      }
-
-      // Final 1's complement value correction to 16-bits
-      sum = ~sum;
-      sum = sum & 0xFFFF;
-      return sum;
-    }
-
-    // Send HTTP request to a server and get response
-    protected class httpQuery extends AsyncTask<String, Void, String> {
-		String reply = null;
-		@Override
-		protected String doInBackground(String... strs) {
-			// Sample HTTP POST request code:
-			String temp1="";
-			HttpClient httpclient = new DefaultHttpClient();
-
-				HttpPost getVal = new HttpPost("http://testdbserver.appspot.com/getvalue");
-			
-				// ArrayList<NameValuePair> is used to send values from android app to server.
-		        ArrayList<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();  
-		        
-		        // "tag" is the name of the text form on the webserver
-		        // "mytagInput" is the value that the client is submitting to the server
-		        nameValuePairs.add(new BasicNameValuePair("tag", strs[0]));
-		        
-		      
-				 try {
-					 UrlEncodedFormEntity httpEntity = new UrlEncodedFormEntity(nameValuePairs);
-					 getVal.setEntity(httpEntity); 
-					 
-					 HttpResponse response = httpclient.execute(getVal);
-					 temp1 = EntityUtils.toString(response.getEntity());	
-					} 
-					  catch (ClientProtocolException e) {			  
-						e.printStackTrace();
-					} catch (IOException e) {
-						System.out.println("HTTP IO Exception");
-						e.printStackTrace();
-					}
-					 
-
-		            // Decode the JSON array. Array is zero based so the return value is in element 2
-					try {
-						JSONArray jsonArray = new JSONArray(temp1);
-						reply = jsonArray.getString(2);
-						return reply;
-					} catch (JSONException e) {
-						System.out.println("Error in JSON decoding");
-						e.printStackTrace();
-					}
-			
-			return null;
-		}
-		
-		@Override
-		protected void onPostExecute(String res) {
-			//((TextView)findViewById(R.id.outVal)).setText("Temperature: "+res);
-		}
-	}
 }
